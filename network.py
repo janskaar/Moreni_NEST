@@ -10,23 +10,23 @@ class Network:
         self.net_dict = net_dict
         self.stim_dict = stim_dict
 
-#         # data directory
-#         self.data_path = sim_dict["data_path"]
-#         if nest.Rank() == 0:
-#             if os.path.isdir(self.data_path):
-#                 message = "  Directory already existed."
-#                 if self.sim_dict["overwrite_files"]:
-#                     message += " Old data will be overwritten."
-#             else:
-#                 os.mkdir(self.data_path)
-#                 message = "  Directory has been created."
-#             print("Data will be written to: {}\n{}\n".format(self.data_path, message))
+        # data directory
+        self.data_path = sim_dict["data_path"]
+        if nest.Rank() == 0:
+            if os.path.isdir(self.data_path):
+                message = "  Directory already existed."
+                if self.sim_dict["overwrite_files"]:
+                    message += " Old data will be overwritten."
+            else:
+                os.mkdir(self.data_path)
+                message = "  Directory has been created."
+            print("Data will be written to: {}\n{}\n".format(self.data_path, message))
 
         # derive parameters based on input dictionaries
         self._derive_parameters()
 
         # initialize the NEST kernel
-#         self._setup_nest()
+        self._setup_nest()
 
     def create(self):
         """Creates all network nodes.
@@ -34,15 +34,11 @@ class Network:
         Neuronal populations and recording and stimulation devices are created.
 
         """
-        self.__create_neuronal_populations()
+        self._create_populations()
         if len(self.sim_dict["rec_dev"]) > 0:
-            self.__create_recording_devices()
-        if self.net_dict["poisson_input"]:
-            self.__create_poisson_bg_input()
-        if self.stim_dict["thalamic_input"]:
-            self.__create_thalamic_stim_input()
-        if self.stim_dict["dc_input"]:
-            self.__create_dc_stim_input()
+            self._create_recording_devices()
+        self._create_poisson_bg_input()
+
 
     def connect(self):
         """Connects the network.
@@ -61,16 +57,11 @@ class Network:
         we induce it here explicitly by calling ``nest.Prepare()``.
 
         """
-        self.__connect_neuronal_populations()
+        self._connect_populations()
 
         if len(self.sim_dict["rec_dev"]) > 0:
-            self.__connect_recording_devices()
-        if self.net_dict["poisson_input"]:
-            self.__connect_poisson_bg_input()
-        if self.stim_dict["thalamic_input"]:
-            self.__connect_thalamic_stim_input()
-        if self.stim_dict["dc_input"]:
-            self.__connect_dc_stim_input()
+            self._connect_recording_devices()
+        self._connect_poisson_bg_input()
 
         nest.Prepare()
         nest.Cleanup()
@@ -95,31 +86,20 @@ class Network:
         """
         self.num_pops = len(self.net_dict["populations"])
         N_tot = self.net_dict["N_tot"]
-        N_tot_orig = sum(self.net_dict["original_population_sizes"])
+        N_tot_orig = sum(self.net_dict["original_population_sizes"][1:])
+
         self.population_sizes = [int(np.round(s * N_tot / N_tot_orig)) for s in self.net_dict["original_population_sizes"]]
 
 
-#         # total number of synapses between neuronal populations before scaling
-#         full_num_synapses = helpers.num_synapses_from_conn_probs(
-#             self.net_dict["conn_probs"], self.net_dict["full_num_neurons"], self.net_dict["full_num_neurons"]
-#         )
+    def _create_poisson_bg_input(self):
+        self.bg_poisson_generators = []
+        for rate in self.net_dict["nu_ext"]:
+            self.bg_poisson_generators.append(nest.Create("poisson_generator", params={"rate": rate}))
 
 
-        ## FIX ROUNDOFF ERRORS
-#         self.num_neurons = [np.round(self.net_dict["N_tot"] * fraction).astype(int) for fraction in self.net_dict["population_fractions"]]
-
-
-
-
-
-#         self.num_synapses = np.round(
-#             (full_num_synapses * self.net_dict["N_scaling"] * self.net_dict["K_scaling"])
-#         ).astype(int)
-#         self.ext_indegrees = np.round((self.net_dict["K_ext"] * self.net_dict["K_scaling"])).astype(int)
-
-
-
-
+    def _connect_poisson_bg_input(self):
+        for poisson_gen, pop in zip(self.bg_poisson_generators, self.pops):
+            nest.Connect(poisson_gen, pop, syn_spec={"weight": self.net_dict["weight_ext"], "receptor_type": 1})
 
 
     def _setup_nest(self):
@@ -172,72 +152,39 @@ class Network:
 
             self.pops.append(population)
 
-#         # write node ids to file
-#         if nest.Rank() == 0:
-#             fn = os.path.join(self.data_path, "population_nodeids.dat")
-#             with open(fn, "w+") as f:
-#                 for pop in self.pops:
-#                     f.write("{} {}\n".format(pop[0].global_id, pop[-1].global_id))
-# 
-#     def __create_recording_devices(self):
-#         """Creates one recording device of each kind per population.
-# 
-#         Only devices which are given in ``sim_dict['rec_dev']`` are created.
-# 
-#         """
-#         if nest.Rank() == 0:
-#             print("Creating recording devices.")
-# 
-#         if "spike_recorder" in self.sim_dict["rec_dev"]:
-#             if nest.Rank() == 0:
-#                 print("  Creating spike recorders.")
-#             sd_dict = {"record_to": "ascii", "label": os.path.join(self.data_path, "spike_recorder")}
-#             self.spike_recorders = nest.Create("spike_recorder", n=self.num_pops, params=sd_dict)
-# 
-#         if "voltmeter" in self.sim_dict["rec_dev"]:
-#             if nest.Rank() == 0:
-#                 print("  Creating voltmeters.")
-#             vm_dict = {
-#                 "interval": self.sim_dict["rec_V_int"],
-#                 "record_to": "ascii",
-#                 "record_from": ["V_m"],
-#                 "label": os.path.join(self.data_path, "voltmeter"),
-#             }
-#             self.voltmeters = nest.Create("voltmeter", n=self.num_pops, params=vm_dict)
-# 
-#     def __create_poisson_bg_input(self):
-#         """Creates the Poisson generators for ongoing background input if
-#         specified in ``network_params.py``.
-# 
-#         If ``poisson_input`` is ``False``, DC input is applied for compensation
-#         in ``create_neuronal_populations()``.
-# 
-#         """
-#         if nest.Rank() == 0:
-#             print("Creating Poisson generators for background input.")
-# 
-#         self.poisson_bg_input = nest.Create("poisson_generator", n=self.num_pops)
-#         self.poisson_bg_input.rate = self.net_dict["bg_rate"] * self.ext_indegrees
-# 
-# 
-#     def __create_dc_stim_input(self):
-#         """Creates DC generators for external stimulation if specified
-#         in ``stim_dict``.
-# 
-#         The final amplitude is the ``stim_dict['dc_amp'] * net_dict['K_ext']``.
-# 
-#         """
-#         dc_amp_stim = self.stim_dict["dc_amp"] * self.net_dict["K_ext"]
-# 
-#         if nest.Rank() == 0:
-#             print("Creating DC generators for external stimulation.")
-# 
-#         dc_dict = {
-#             "amplitude": dc_amp_stim,
-#             "start": self.stim_dict["dc_start"],
-#             "stop": self.stim_dict["dc_start"] + self.stim_dict["dc_dur"],
-#         }
-#         self.dc_stim_input = nest.Create("dc_generator", n=self.num_pops, params=dc_dict)
+        # write node ids to file
+        if nest.Rank() == 0:
+            fn = os.path.join(self.data_path, "population_nodeids.dat")
+            with open(fn, "w+") as f:
+                for pop in self.pops:
+                    f.write("{} {}\n".format(pop[0].global_id, pop[-1].global_id))
+
+
+    def _create_recording_devices(self):
+        """Creates one recording device of each kind per population.
+
+        Only devices which are given in ``sim_dict['rec_dev']`` are created.
+
+        """
+        if nest.Rank() == 0:
+            print("Creating recording devices.")
+
+        if "spike_recorder" in self.sim_dict["rec_dev"]:
+            if nest.Rank() == 0:
+                print("  Creating spike recorders.")
+            sd_dict = {"record_to": "ascii", "label": os.path.join(self.data_path, "spike_recorder")}
+            self.spike_recorders = nest.Create("spike_recorder", n=self.num_pops, params=sd_dict)
+
+        if "voltmeter" in self.sim_dict["rec_dev"]:
+            if nest.Rank() == 0:
+                print("  Creating voltmeters.")
+            vm_dict = {
+                "interval": self.sim_dict["rec_V_int"],
+                "record_to": "ascii",
+                "record_from": ["V_m"],
+                "label": os.path.join(self.data_path, "voltmeter"),
+            }
+            self.voltmeters = nest.Create("voltmeter", n=self.num_pops, params=vm_dict)
 
 
     def _get_conn_spec_syn_spec(self, source_index, target_index):
@@ -310,22 +257,6 @@ class Network:
             if "voltmeter" in self.sim_dict["rec_dev"]:
                 nest.Connect(self.voltmeters[i], target_pop)
 
-    def __connect_poisson_bg_input(self):
-        """Connects the Poisson generators to the microcircuit."""
-        if nest.Rank() == 0:
-            print("Connecting Poisson generators for background input.")
-
-        for i, target_pop in enumerate(self.pops):
-            conn_dict_poisson = {"rule": "all_to_all"}
-
-            syn_dict_poisson = {
-                "synapse_model": "static_synapse",
-                "weight": self.weight_ext,
-                "delay": self.net_dict["delay_poisson"],
-            }
-
-            nest.Connect(self.poisson_bg_input[i], target_pop, conn_spec=conn_dict_poisson, syn_spec=syn_dict_poisson)
-
     def __connect_thalamic_stim_input(self):
         """Connects the thalamic input to the neuronal populations."""
         if nest.Rank() == 0:
@@ -373,13 +304,13 @@ class Network:
 
 ##
 
-from parameters import net_dict
+from network_params import net_dict
+from sim_params import sim_dict
 
-net = Network(None, net_dict, None)
-net._create_populations()
-net._connect_populations()
-
-
+net = Network(sim_dict, net_dict, None)
+net.create()
+net.connect()
+net.simulate(500.)
 
 
 

@@ -43,6 +43,7 @@ net_dict = {
     "weights": np.loadtxt("synaptic_weights.csv", delimiter=","),
     "weight_scale": 5.,
     "nu_ext": [650, 930, 1460, 870, 1405, 890, 1980, 2105, 240, 4740, 930, 530, 870, 1770, 1170, 885, 1620],
+    "weight_ext": 1.,
     "delay": 0.5,
     "fraction_AMPA": 0.8,
     "fraction_NMDA": 0.2,

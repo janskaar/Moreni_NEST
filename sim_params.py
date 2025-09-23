@@ -32,9 +32,9 @@ sim_dict = {
     # The full simulation time is the sum of a presimulation time and the main
     # simulation time.
     # presimulation time (in ms)
-    "t_presim": 500.0,
+    "t_presim": 0.0,
     # simulation time (in ms)
-    "t_sim": 1000.0,
+    "t_sim": 500.0,
     # resolution of the simulation (in ms)
     "sim_resolution": 0.1,
     # list of recording devices, default is 'spike_recorder'. A 'voltmeter' can
@@ -51,7 +51,7 @@ sim_dict = {
     # may not run correctly if there is < 4 virtual processes
     # (i.e., a thread in an MPI process)
     # If you have 4 or more MPI processes, then you can set this value to 1.
-    "local_num_threads": 4,
+    "local_num_threads": 1,
     # recording interval of the membrane potential (in ms)
     "rec_V_int": 1.0,
     # if True, data will be overwritten,
