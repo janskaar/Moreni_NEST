@@ -13,12 +13,23 @@ net_dict = {
 
     "N_tot": 5000,
 
-    # Data from L23-L6 comes from V1_structure.xlsx from Billeh. V1
-    "original_population_sizes": [1000,
+    # Data from L23-L6 comes from V1_structure.xlsx from Billeh.
+    # L1 size is set such that population size matches Moreni paper.
+    "original_population_sizes": [4350,
                                   56057, 2927, 2120, 4845,
                                   45761, 4461, 2384, 1231,
-                                  33558, 2876, 2538, 508,
-                                  44384, 3590, 3590, 653],
+                                  33558, 2876, 2538,  508,
+                                  57202, 4626, 4626,  841],
+
+#                     96
+# 1236,   65,   47,  107
+# 1010,   98,   53,   27
+#  741,   63,   56,   11
+# 1263,  102,  102,   19
+
+
+
+
 
 #     "population_fractions": [
 #                              0.247425, 0.012921, 0.009356, 0.021386,
@@ -31,6 +42,7 @@ net_dict = {
     # taken from connectionsStren.txt, Csl1.txt, Cstol1.txt. L1->L1 found in simulation scripts.
     "weights": np.loadtxt("synaptic_weights.csv", delimiter=","),
     "weight_scale": 5.,
+    "nu_ext": [650, 930, 1460, 870, 1405, 890, 1980, 2105, 240, 4740, 930, 530, 870, 1770, 1170, 885, 1620],
     "delay": 0.5,
     "fraction_AMPA": 0.8,
     "fraction_NMDA": 0.2,
