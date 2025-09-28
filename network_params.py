@@ -21,21 +21,6 @@ net_dict = {
                                   33558, 2876, 2538,  508,
                                   57202, 4626, 4626,  841],
 
-#                     96
-# 1236,   65,   47,  107
-# 1010,   98,   53,   27
-#  741,   63,   56,   11
-# 1263,  102,  102,   19
-
-
-
-
-
-#     "population_fractions": [
-#                              0.247425, 0.012921, 0.009356, 0.021386,
-#                              0.201982, 0.019689, 0.010523, 0.005431,
-#                              0.148118, 0.012696, 0.011202, 0.002240,
-#                              0.252477, 0.020421, 0.020421, 0.003713],
 
     # taken from connectionsPro_final.txt, Cpl1_final.txt, Cptol1_final.txt. L1->L1 found in simulation scripts.
     "conn_probs": np.loadtxt("connectivity.csv", delimiter=","),
@@ -43,6 +28,7 @@ net_dict = {
     "weights": np.loadtxt("synaptic_weights.csv", delimiter=","),
     "weight_scale": 5.,
     "nu_ext": [650, 930, 1460, 870, 1405, 890, 1980, 2105, 240, 4740, 930, 530, 870, 1770, 1170, 885, 1620],
+#     "I_ext": [
     "weight_ext": 1.,
     "delay": 0.5,
     "fraction_AMPA": 0.8,

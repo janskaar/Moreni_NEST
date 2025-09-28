@@ -22,6 +22,8 @@ class Network:
                 message = "  Directory has been created."
             print("Data will be written to: {}\n{}\n".format(self.data_path, message))
 
+
+        self.pop_names = self.net_dict["populations"]
         # derive parameters based on input dictionaries
         self._derive_parameters()
 
@@ -172,8 +174,8 @@ class Network:
         if "spike_recorder" in self.sim_dict["rec_dev"]:
             if nest.Rank() == 0:
                 print("  Creating spike recorders.")
-            sd_dict = {"record_to": "ascii", "label": os.path.join(self.data_path, "spike_recorder")}
-            self.spike_recorders = nest.Create("spike_recorder", n=self.num_pops, params=sd_dict)
+            sd_dicts = [{"record_to": "ascii", "label": os.path.join(self.data_path, "spike_recorder" + "_" + pop)} for pop in self.pop_names]
+            self.spike_recorders = nest.Create("spike_recorder", n=self.num_pops, params=sd_dicts)
 
         if "voltmeter" in self.sim_dict["rec_dev"]:
             if nest.Rank() == 0:
@@ -290,16 +292,6 @@ class Network:
 
             nest.Connect(self.thalamic_population, target_pop, conn_spec=conn_dict_th, syn_spec=syn_dict_th)
 
-    def __connect_dc_stim_input(self):
-        """Connects the DC generators to the neuronal populations."""
-
-        if nest.Rank() == 0:
-            print("Connecting DC generators.")
-
-        for i, target_pop in enumerate(self.pops):
-            nest.Connect(self.dc_stim_input[i], target_pop)
-
-
 
 
 ##
@@ -311,9 +303,4 @@ net = Network(sim_dict, net_dict, None)
 net.create()
 net.connect()
 net.simulate(500.)
-
-
-
-
-
 
