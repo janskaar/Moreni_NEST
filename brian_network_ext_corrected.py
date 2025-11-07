@@ -12,13 +12,13 @@ savedir = "brian_data/"
 if not os.path.exists(savedir):
     os.makedirs(savedir)
 
-runtime = 500.0 * ms # How long you want the simulation to be
+runtime = 1000.0 * ms # How long you want the simulation to be
 dt_sim=0.1 #ms         # Resolution of the simulation
 G=5 #global constant to increase all the connections weights
 Gl1=5 #global constant to increase all the connections weights in Layer 1
 Ntot=5000 #Total number of neurons in the simulation
 
-np.random.seed(20) #If you want the exact same simulation every time uncomment this
+np.random.seed(200) #If you want the exact same simulation every time uncomment this
 
 # External input to the neurons
 Iext=np.loadtxt('import_files/Iext0.txt') #File that contain the external input for layer 2/3,4,5,6
@@ -66,44 +66,6 @@ for k in range(0,4):
                                     #n_tot[k][0] is the number of neuorons in that layer from the percentages
                                     #If the two numbers don't match the N[k][0] (excitaotry in each layer) gets updated
 
-# Messages that will appear while running this code 
-print('---------------------------------------------------')
-print('CORTICAL COLUMN SIMULATION ') 
-print('---------------------------------------------------')
-print("The cortical column in this model is composed by 4 layers + 1")
-print("Total number of neurons in the column: %s + %s \n85 perc excitatory neurons and 15 perc inhibitory neurons \nIn each layer (except L1): \n1 excitotory population and 3 inhibitory populations: PV, SST and VIP cells.   "%(Ntot,N1))
-print('--------------------------------------------------')
-print("Initializing and building the Network") 
-print('--------------------------------------------------')
-print("In layer 1: %s VIP neurons"%N1)
-print("Ntot of 4 layers: %s "%sum(N))
-print('Number of neurons for each layer and type:')
-print(N)
-print('From left to right: E, PV, SST, VIP')
-print('From top to bottom: L2/3, L4, L5, L6')
-print('--------------------------------------------------')
-
-# FOR THE MOMENT I AM NOT USING DISTINCTION BETWEEN excitatrory and inhibitory receptor conductances
-# They are all 1 nS (see in the equations definition later)
-# In the future this can be changed, we could use values from Wang paper or from the other Wang code online.
-# I put here all the values that those two codes have
-
-# # Connectivity - external connections
-# g_AMPA_ext_E = 2.08 * nS #2.1 * nS
-# g_AMPA_ext_I = 1.62 * nS
-
-# #ampa connections
-# g_AMPA_rec_I = 0.081 * nS # gEI_AMPA = 0.04 * nS    # Weight of excitatory to inhibitory synapses (AMPA)
-# g_AMPA_rec_E =0.104 * nS # gEE_AMPA = 0.05 * nS    # Weight of AMPA synapses between excitatory neurons
-
-# # NMDA (excitatory)
-# g_NMDA_E = 0.327 * nS # 0.165 * nS # Weight of NMDA synapses between excitatory
-# g_NMDA_I =0.258 * nS # 0.13 * nS # Weight of NMDA synapses between excitatory and inhibitory
-
-# # GABAergic (inhibitory)
-# g_GABA_E =1.25 * nS # gIE_GABA = 1.3 * nS # Weight of inhibitory to excitatory synapses
-# g_GABA_I =0.973 * nS # gII_GABA = 1.0 * nS # Weight of inhibitory to inhibitory synapses
-
 ##### ----------------------------------------------#####
 #####               Synapse model                   #####
 ##### --------------------------------------------- #####
@@ -131,7 +93,7 @@ alpha_NMDA = 0.5 * kHz                     # Saturation constant of NMDA-type co
 Mg2 = 1.                                   # Magnesiumn concentration
 d = 2 * ms                                 # Transmission delay of recurrent excitatory and inhibitory connections
 
-print("Importing the data")
+# print("Importing the data")
 # Matrices containing all the connections (probabilities and strenght) 
 # This are data from the Allen database
 Cp = np.loadtxt('import_files/connectionsPro_final.txt') #connenctions probabilities between the 16 groups in the 4 layers (not VIP1)
@@ -167,15 +129,15 @@ tau_ref_l1= 3.5
 end_import= time.time() 
 
 # Check if everything is correct 
-print('------------------Check--------------------------------')
-print('Cm')
-print(Cm)
-print('gl')
-print(gl)
-print(Vl)
-print(Vt)
-print(type(Vt[0][1]))
-print(tau_ref)
+# print('------------------Check--------------------------------')
+# print('Cm')
+# print(Cm)
+# print('gl')
+# print(gl)
+# print(Vl)
+# print(Vt)
+# print(type(Vt[0][1]))
+# print(tau_ref)
 
 ##### ----------------------------------------------#####
 #####             Equations of synapse model        #####
@@ -332,7 +294,7 @@ for h in range(0,4):
     for z in range(0,4):
 
         # I create a neuron population, number of neurons and parameters differ for each group
-        pop = NeuronGroup(N[h][z], model=eqs, threshold='v > Vth', reset='v = V_rest', refractory=tau_ref[h][z]*ms, method='euler')
+        pop = NeuronGroup(N[h][z], model=eqs, threshold='v > Vth', reset='v = V_rest', refractory=tau_ref[h][z]*ms, method='rk4')
         
         # The values are taken from the matrices with specific values
         pop.C_m = Cm[h][z]* pF
@@ -367,7 +329,7 @@ for h in range(0,4):
 #I create the population in layer 1 (this is not in the previous for loop)
 Vth_l1= Vt_l1*mV
 Vrest_l1=Vr_l1*mV
-popl1 = NeuronGroup(Nl1, model=eqs, threshold='v > Vth_l1', reset='v = Vrest_l1', refractory=tau_ref_l1*ms, method='euler')
+popl1 = NeuronGroup(Nl1, model=eqs, threshold='v > Vth_l1', reset='v = Vrest_l1', refractory=tau_ref_l1*ms, method='rk4')
 
 popl1.C_m = Cm_l1* pF
 popl1.g_m= gl_l1*nS
@@ -479,7 +441,7 @@ def connect_populations(sources,targets,G,Cs,Cp,N,pops,d,e_ampa,e_nmda,i_ampa,i_
                 if t_cell_type==0: # target is excitatory neuron
 
                     # sending is excitaotry receiving is excitaotry then they are connected trought AMPA receptors:
-                    conn= Synapses(pops[s_layer][s_cell_type],pops[t_layer][t_cell_type],model=eqs_ampa[s_layer],on_pre='s_AMPA+=1', method='euler') #I am connectiong 2 populations, with ampa equation
+                    conn= Synapses(pops[s_layer][s_cell_type],pops[t_layer][t_cell_type],model=eqs_ampa[s_layer],on_pre='s_AMPA+=1', method='rk4') #I am connectiong 2 populations, with ampa equation
                     conn.connect(condition='i != j',p=e_ampa*Cp[4*s_layer+s_cell_type][4*t_layer+t_cell_type]) #how to connect the neurons in the two populations, with probability p 
                     #conn.connect(condition='i != j',p=Cp[4*s_layer+s_cell_type][4*t_layer+t_cell_type]*1)# when NMDA off use this
 
@@ -499,7 +461,7 @@ def connect_populations(sources,targets,G,Cs,Cp,N,pops,d,e_ampa,e_nmda,i_ampa,i_
                     del conn #I delete it to save memory
 
                     if nmda_on==True: #I need to create the NMDA connections
-                        conn1= Synapses(pops[s_layer][s_cell_type],pops[t_layer][t_cell_type],model=eqs_nmda[s_layer],on_pre='x+=1', method='euler')
+                        conn1= Synapses(pops[s_layer][s_cell_type],pops[t_layer][t_cell_type],model=eqs_nmda[s_layer],on_pre='x+=1', method='rk4')
                         conn1.connect(condition='i != j',p=e_nmda*Cp[4*s_layer+s_cell_type][4*t_layer+t_cell_type])
 
                         if Cp[4*s_layer+s_cell_type][4*t_layer+t_cell_type]==0: #If the probability of connections is 0 I still need to create an NMDA that has a weight with 0 effect
@@ -514,7 +476,7 @@ def connect_populations(sources,targets,G,Cs,Cp,N,pops,d,e_ampa,e_nmda,i_ampa,i_
                 if t_cell_type!=0: # target is inhibitory neuron
                                     # Note: is the same as before but in the future if the % of AMPA is different I have already everything in place
 
-                    conn= Synapses(pops[s_layer][s_cell_type],pops[t_layer][t_cell_type],model=eqs_ampa[s_layer],on_pre='s_AMPA+=1', method='euler')
+                    conn= Synapses(pops[s_layer][s_cell_type],pops[t_layer][t_cell_type],model=eqs_ampa[s_layer],on_pre='s_AMPA+=1', method='rk4')
                     conn.connect(condition='i != j',p=i_ampa*Cp[4*s_layer+s_cell_type][4*t_layer+t_cell_type])
                     #conn.connect(condition='i != j',p=Cp[4*s_layer+s_cell_type][4*t_layer+t_cell_type]*1)# when NMDA off use this
 
@@ -534,7 +496,7 @@ def connect_populations(sources,targets,G,Cs,Cp,N,pops,d,e_ampa,e_nmda,i_ampa,i_
                     del conn #I delete it to save memory
 
                     if nmda_on==True: #I need to create the NMDA connections
-                        conn1= Synapses(pops[s_layer][s_cell_type],pops[t_layer][t_cell_type],model=eqs_nmda[s_layer],on_pre='x+=1', method='euler')
+                        conn1= Synapses(pops[s_layer][s_cell_type],pops[t_layer][t_cell_type],model=eqs_nmda[s_layer],on_pre='x+=1', method='rk4')
                         conn1.connect(condition='i != j',p=i_nmda*Cp[4*s_layer+s_cell_type][4*t_layer+t_cell_type])
                         #conn1.connect(condition='i != j',p=Cp[4*s_layer+s_cell_type][4*t_layer+t_cell_type]*1) # when I try weights instead
                         if Cp[4*s_layer+s_cell_type][4*t_layer+t_cell_type]==0: #If the probability of connections is 0 I still need to create an AMPA that has a weight with 0 effect
@@ -547,7 +509,7 @@ def connect_populations(sources,targets,G,Cs,Cp,N,pops,d,e_ampa,e_nmda,i_ampa,i_
                         del conn1 #I delete it to save memory
 
             else: # sendind is inhibitory neuron, the connections goes to GABA receptors
-                conn2= Synapses(pops[s_layer][s_cell_type],pops[t_layer][t_cell_type],model=eqs_gaba[3*s_layer+s_cell_type-1],on_pre='s_GABA+=1', method='euler')
+                conn2= Synapses(pops[s_layer][s_cell_type],pops[t_layer][t_cell_type],model=eqs_gaba[3*s_layer+s_cell_type-1],on_pre='s_GABA+=1', method='rk4')
                 conn2.connect(condition='i != j',p=Cp[4*s_layer+s_cell_type][4*t_layer+t_cell_type])
 
                 if s_layer==t_layer and s_cell_type==t_cell_type: #within the same population
@@ -571,13 +533,6 @@ def connect_populations(sources,targets,G,Cs,Cp,N,pops,d,e_ampa,e_nmda,i_ampa,i_
 
     return All_C
 
-#IMPORTANT to understand:
-# I have to assign to each source his own equation bijectively. This eqs_gaba[3*s_layer+s_cell_type-1]
-# trasform the pair [layer][cell_type] into a number corresponding to one of the 11 gaba equations
-
-# I want a correspondace between my matrix 4x4 (layer,cell type) and the matrix 16x16 where all the values of the connections are stored.
-# This is why I need #Cp[4*s_layer+s_cell_type][4*t_layer+t_cell_type]
-
 
 # Function to connect l1 to populations
 def connect_l1to_target(targets,Gl1,Csl1,Cpl1,Nl1,pops,popl1,d):
@@ -586,7 +541,7 @@ def connect_l1to_target(targets,Gl1,Csl1,Cpl1,Nl1,pops,popl1,d):
             t_layer = targets[k][0]
             t_cell_type = targets[k][1]
 
-            conn2= Synapses(popl1,pops[t_layer][t_cell_type],model=eqs_gaba_l1,on_pre='s_GABA+=1', method='euler')
+            conn2= Synapses(popl1,pops[t_layer][t_cell_type],model=eqs_gaba_l1,on_pre='s_GABA+=1', method='rk4')
             conn2.connect(condition='i != j',p=Cpl1[4*t_layer+t_cell_type])
 
             if Csl1[4*t_layer+t_cell_type]==0 or Cpl1[4*t_layer+t_cell_type]==0:
@@ -600,7 +555,7 @@ def connect_l1to_target(targets,Gl1,Csl1,Cpl1,Nl1,pops,popl1,d):
 
 # Function to connect l1 to l1
 def connect_l1_l1(Gl1,Cs_l1_l1,Cp_l1_l1,Nl1,popl1,d):
-    conn2= Synapses(popl1,popl1,model=eqs_gaba_l1,on_pre='s_GABA+=1', method='euler')
+    conn2= Synapses(popl1,popl1,model=eqs_gaba_l1,on_pre='s_GABA+=1', method='rk4')
     conn2.connect(condition='i != j',p=Cp_l1_l1)
     #conn2.w_GABA= Cs_l1_l1
     conn2.w_GABA= Gl1* Cs_l1_l1/(Cp_l1_l1*Nl1)
@@ -615,7 +570,7 @@ def connect_source_tol1(sources,Gl1,Cs_tol1,Cp_tol1,N,pops,popl1,d,i_ampa,i_nmda
         s_cell_type = sources[h][1]
 
         if s_cell_type==0: #0 is excitatory neuron
-            conn= Synapses(pops[s_layer][s_cell_type],popl1,model=eqs_ampa[s_layer],on_pre='s_AMPA+=1', method='euler')
+            conn= Synapses(pops[s_layer][s_cell_type],popl1,model=eqs_ampa[s_layer],on_pre='s_AMPA+=1', method='rk4')
             conn.connect(condition='i != j',p=Cp_tol1[4*s_layer+s_cell_type]*i_ampa)
 
             #print(conn.N_outgoing_pre)
@@ -629,7 +584,7 @@ def connect_source_tol1(sources,Gl1,Cs_tol1,Cp_tol1,N,pops,popl1,d,i_ampa,i_nmda
             del conn
 
             if nmda_on==True:
-                conn1= Synapses(pops[s_layer][s_cell_type],popl1,model=eqs_nmda[s_layer],on_pre='x+=1', method='euler')
+                conn1= Synapses(pops[s_layer][s_cell_type],popl1,model=eqs_nmda[s_layer],on_pre='x+=1', method='rk4')
                 conn1.connect(condition='i != j',p=Cp_tol1[4*s_layer+s_cell_type]*i_nmda)
                 if Cs_tol1[4*s_layer+s_cell_type]==0 or Cp_tol1[4*s_layer+s_cell_type]==0:
                     conn1.w_NMDA= 0
@@ -640,7 +595,7 @@ def connect_source_tol1(sources,Gl1,Cs_tol1,Cp_tol1,N,pops,popl1,d,i_ampa,i_nmda
                 All_C.append(conn1)
                 del conn1
         else:
-            conn2= Synapses(pops[s_layer][s_cell_type],popl1,model=eqs_gaba[3*s_layer+s_cell_type-1],on_pre='s_GABA+=1', method='euler')
+            conn2= Synapses(pops[s_layer][s_cell_type],popl1,model=eqs_gaba[3*s_layer+s_cell_type-1],on_pre='s_GABA+=1', method='rk4')
             conn2.connect(condition='i != j',p=Cp_tol1[4*s_layer+s_cell_type])
 
             if Cs_tol1[4*s_layer+s_cell_type]==0 or Cp_tol1[4*s_layer+s_cell_type]==0:
@@ -717,43 +672,16 @@ def connect_l1_all(Gl1,Csl1,Cpl1,Cs_tol1,Cp_tol1,Cs_l1_l1,Cp_l1_l1,N,Nl1,pops,po
 
 # Compute the time to connect the populations between them
 start_connecting=time.time()
-print('--------------------------------------------------')
-print('Connecting layers')
-print('--------------------------------------------------')
+# print('--------------------------------------------------')
+# print('Connecting layers')
+# print('--------------------------------------------------')
 
 # # I connect all the layers by calling the functions to connect
-# conn_all_l1=connect_l1_all(Gl1,Csl1,Cpl1,Cs_tol1,Cp_tol1,Cs_l1_l1,Cp_l1_l1,N,Nl1,pops,popl1,d,i_ampa,i_nmda,nmda_on=True)
-# print(1)
-# conn_all=connect_all_layers(Cs,Cp,G,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True)
-# print(2)
-# conn_all=connect_all_layers(Cs,Cp,G,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True)
-# print(3)
-# conn_all=connect_all_layers(Cs,Cp,G,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True)
-# print(4)
-# conn_all=connect_all_layers(Cs,Cp,G,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True)
-# print(5)
-# conn_all=connect_all_layers(Cs,Cp,G,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True)
-# print(6)
-# conn_all=connect_all_layers(Cs,Cp,G,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True)
-# print(6)
-# conn_all=connect_all_layers(Cs,Cp,G,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True)
-# print(7)
-# conn_all=connect_all_layers(Cs,Cp,G,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True)
-# print(8)
-# conn_all=connect_all_layers(Cs,Cp,G,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True)
-# print(9)
-# conn_all=connect_all_layers(Cs,Cp,G,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True)
-# print(10)
-# conn_all=connect_all_layers(Cs,Cp,G,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True)
-# print(11)
-# connections=conn_all+conn_all_l1 #all the connections are saved in this array
-connections = []
-# print(12)
+conn_all_l1=connect_l1_all(Gl1,Csl1,Cpl1,Cs_tol1,Cp_tol1,Cs_l1_l1,Cp_l1_l1,N,Nl1,pops,popl1,d,i_ampa,i_nmda,nmda_on=True)
+conn_all=connect_all_layers(Cs,Cp,G,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True)
 # print('All layers now connected')
 end_connecting=time.time() # Compute the time it took to connect all populations
-
-
-
+connections = conn_all + conn_all_l1
 ##### -----------------------------------------------------------------------------------#####
 ##### Create the functions for the recording devices: Spike detectors and rate detectors #####
 ##### -----------------------------------------------------------------------------------#####
@@ -793,368 +721,73 @@ def rate_det(pops,layer):
 # To compute the time to create detectors 
 start_detectors=time.time()
 
-# Detectors layer1
-S_vip1 = SpikeMonitor(popl1[:],record=True)
-R_vip1 = PopulationRateMonitor(popl1)
 
 SM_ampa_ext = [StateMonitor(popl1, "s_AMPA_ext", record=True, dt=1*ms)] + [StateMonitor(pop, "s_AMPA_ext", record=True, dt=1*ms) for layer in pops for pop in layer]
 SM_v = [StateMonitor(popl1, "v", record=True, dt=1*ms)] + [StateMonitor(pop, "v", record=True, dt=1*ms) for layer in pops for pop in layer]
 
-# Create the detectors for each desired layer (using the function above) for all neurons
-S_e23,S_pv23,S_sst23,S_vip23= spike_det(pops,0,True) #Spike det of pops in layer 2/3
-S_e4,S_pv4,S_sst4,S_vip4= spike_det(pops,1,True)     #Spike det of pops in layer 4
-S_e5,S_pv5,S_sst5,S_vip5= spike_det(pops,2,True)     #Spike det of pops in layer 5
-S_e6,S_pv6,S_sst6,S_vip6= spike_det(pops,3,True)     #Spike det of pops in layer 6
+spike_monitors = [SpikeMonitor(popl1[:],record=True)]
+for i in range(4):
+    spike_monitors.extend(spike_det(pops, i, True))
 
-# Record instantaneous populations activity
-R_e23,R_pv23,R_sst23,R_vip23= rate_det(pops,0) #Rate det of pops in layer 2/3
-R_e4,R_pv4,R_sst4,R_vip4= rate_det(pops,1)     #Rate det of pops in layer 4
-R_e5,R_pv5,R_sst5,R_vip5= rate_det(pops,2)     #Rate det of pops in layer 5
-R_e6,R_pv6,R_sst6,R_vip6= rate_det(pops,3)     #Rate det of pops in layer 6
+rate_monitors = [PopulationRateMonitor(popl1)]
+for i in range(4):
+    rate_monitors.extend(rate_det(pops, i))
+
 
 # Other recorders devices (not used)
 # mE=StateMonitor(pops[0][0][10], 'v',record=True) #check membrane potential of one neuron
-
-##### ----------------------------------------------------------------------#####
-#####                     Run the simulation                                #####
-##### ----------------------------------------------------------------------#####
 
 defaultclock.dt = dt_sim*ms #time step of simulations
 
 # Construct network
 # I have to add here all the populations, inputs, connections, monitor devices
-net = Network(pops[:],popl1,
+net = Network(pops[:],
+              popl1,
               connections[:],
               extinputs,
-              SM_v, SM_ampa_ext,
-              S_vip1,R_vip1,
-              S_e4,S_pv4,S_sst4,S_vip4,
-              S_e5,S_pv5,S_sst5,S_vip5,
-              S_e6,S_pv6,S_sst6,S_vip6,
-              S_e23,S_pv23,S_sst23,S_vip23,
-              R_e23,R_pv23,R_sst23,R_vip23,
-              R_e4,R_pv4,R_sst4,R_vip4,
-              R_e5,R_pv5,R_sst5,R_vip5,
-              R_e6,R_pv6,R_sst6,R_vip6
+              spike_monitors,
+              rate_monitors,
+#               SM_ampa_ext,
+#               SM_v,
               )
 
-print('Network is built')
-endbuild = time.time() #Compute the time it took to build the model
+net.store("initialized")
+population_rates = []
+# s_AMPA_exts = []
+# vms = []
+for i in range(5):
+    net.restore("initialized")
+    np.random.seed(i+1)
+    net.run(runtime)
+    population_rates.append([rm.smooth_rate(window="flat", width=1*ms).mean() for rm in rate_monitors])
+#     s_AMPA_exts.append(SM_ampa_ext[1].s_AMPA_ext)
+#     vms.append(SM_v[1].v)
+population_rates = np.array(population_rates)
+# s_AMPA_exts = np.array(s_AMPA_exts)
+# vms = np.array(vms)
 
-# Start the simulation
-print('--------------------------------------------------')
-print('Start Simulation')
-print('######################')
-print('Simulation is running')
-print('######################')
-net.run(runtime) #runtime is the time you want to simulate, is a parameter at the beginning of the program
-endsimulate = time.time() #compute the time it took for the simulation to run
-print('Simulation succeded!')
+## 
 
-##### ------------------------------------------------------#####
-#####          Save the data of this siumation              #####
-##### ------------------------------------------------------#####
+# def plot_network(variables):
+#     gs = GridSpec(ncols=4, nrows=5)
+#     index = 0
+#     fig = plt.figure()
+#     for var in variables:
+#         i1, i2 = index // 4, index % 4
+#         ax = fig.add_subplot(gs[i1, i2])
+#         ax.plot(var, color="black")
+#         if index == 0:
+#             index += 4
+#         else:
+#             index += 1
+# 
+# plot_network(population_rates)
+# plt.show()
 
-# I write the spikes in files of every neuron. In one file there are the indeces
-#.i of th neurons emitting spike at the corrisponding time of the other file .t
 
-np.savetxt(SM_ampa_ext.s_AMPA_ext)
-np.savetxt(SM_v.v)
-
-# Layer 1
-f=open(savedir+"/S_vip1i.txt",'w+') #create the file for the neuron indeces which emitted a spike at the corresponding time spike of the other file
-for i in range(0,len(S_vip1.i)): #write all the neuron indeces
-    f.write('%i ' %S_vip1.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_vip1t.txt",'w+') #create the file for the times spike
-for i in range(0,len(S_vip1.t)): #write all the time spikes 
-    f.write('%f ' %S_vip1.t[i])
-    f.write('\n')
-f.close()
-
-# Layer 2/3
-f=open(savedir+"/S_e23i.txt",'w+') #create the file
-for i in range(0,len(S_e23.i)):
-    f.write('%i ' %S_e23.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_e23t.txt",'w+') #create the file
-for i in range(0,len(S_e23.t)):
-    f.write('%f ' %S_e23.t[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_pv23i.txt",'w+') #create the file
-for i in range(0,len(S_pv23.i)):
-    f.write('%i ' %S_pv23.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_pv23t.txt",'w+') #create the file
-for i in range(0,len(S_pv23.t)):
-    f.write('%f ' %S_pv23.t[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_sst23i.txt",'w+') #create the file
-for i in range(0,len(S_sst23.i)):
-    f.write('%i ' %S_sst23.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_sst23t.txt",'w+') #create the file
-for i in range(0,len(S_sst23.t)):
-    f.write('%f ' %S_sst23.t[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_vip23i.txt",'w+') #create the file
-for i in range(0,len(S_vip23.i)):
-    f.write('%i ' %S_vip23.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_vip23t.txt",'w+') #create the file
-for i in range(0,len(S_vip23.t)):
-    f.write('%f ' %S_vip23.t[i])
-    f.write('\n')
-f.close()
-
-# Layer 4
-f=open(savedir+"/S_e4i.txt",'w+') #create the file
-for i in range(0,len(S_e4.i)):
-    f.write('%i ' %S_e4.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_e4t.txt",'w+') #create the file
-for i in range(0,len(S_e4.t)):
-    f.write('%f ' %S_e4.t[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_pv4i.txt",'w+') #create the file
-for i in range(0,len(S_pv4.i)):
-    f.write('%i ' %S_pv4.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_pv4t.txt",'w+') #create the file
-for i in range(0,len(S_pv4.t)):
-    f.write('%f ' %S_pv4.t[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_sst4i.txt",'w+') #create the file
-for i in range(0,len(S_sst4.i)):
-    f.write('%i ' %S_sst4.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_sst4t.txt",'w+') #create the file
-for i in range(0,len(S_sst4.t)):
-    f.write('%f ' %S_sst4.t[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_vip4i.txt",'w+') #create the file
-for i in range(0,len(S_vip4.i)):
-    f.write('%i ' %S_vip4.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_vip4t.txt",'w+') #create the file
-for i in range(0,len(S_vip4.t)):
-    f.write('%f ' %S_vip4.t[i])
-    f.write('\n')
-f.close()
-
-# Layer 5
-f=open(savedir+"/S_e5i.txt",'w+') #create the file
-for i in range(0,len(S_e5.i)):
-    f.write('%i ' %S_e5.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_e5t.txt",'w+') #create the file
-for i in range(0,len(S_e5.t)):
-    f.write('%f ' %S_e5.t[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_pv5i.txt",'w+') #create the file
-for i in range(0,len(S_pv5.i)):
-    f.write('%i ' %S_pv5.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_pv5t.txt",'w+') #create the file
-for i in range(0,len(S_pv5.t)):
-    f.write('%f ' %S_pv5.t[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_sst5i.txt",'w+') #create the file
-for i in range(0,len(S_sst5.i)):
-    f.write('%i ' %S_sst5.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_sst5t.txt",'w+') #create the file
-for i in range(0,len(S_sst5.t)):
-    f.write('%f ' %S_sst5.t[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_vip5i.txt",'w+') #create the file
-for i in range(0,len(S_vip5.i)):
-    f.write('%i ' %S_vip5.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_vip5t.txt",'w+') #create the file
-for i in range(0,len(S_vip5.t)):
-    f.write('%f ' %S_vip5.t[i])
-    f.write('\n')
-f.close()
-
-# Layer 6
-f=open(savedir+"/S_e6i.txt",'w+') #create the file
-for i in range(0,len(S_e6.i)):
-    f.write('%i ' %S_e6.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_e6t.txt",'w+') #create the file
-for i in range(0,len(S_e6.t)):
-    f.write('%f ' %S_e6.t[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_pv6i.txt",'w+') #create the file
-for i in range(0,len(S_pv6.i)):
-    f.write('%i ' %S_pv6.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_pv6t.txt",'w+') #create the file
-for i in range(0,len(S_pv6.t)):
-    f.write('%f ' %S_pv6.t[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_sst6i.txt",'w+') #create the file
-for i in range(0,len(S_sst6.i)):
-    f.write('%i ' %S_sst6.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_sst6t.txt",'w+') #create the file
-for i in range(0,len(S_sst6.t)):
-    f.write('%f ' %S_sst6.t[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_vip6i.txt",'w+') #create the file
-for i in range(0,len(S_vip6.i)):
-    f.write('%i ' %S_vip6.i[i])
-    f.write('\n')
-f.close()
-
-f=open(savedir+"/S_vip6t.txt",'w+') #create the file
-for i in range(0,len(S_vip6.t)):
-    f.write('%f ' %S_vip6.t[i])
-    f.write('\n')
-f.close()
-
-# Save the total number of spikes for each group in files
-# You could also compute this direclty from the spikes files without needing this
-#
-# I write the total number of spikes for each group in a different file
-# Layer 1
-f=open(savedir+"/S_vip1numspike.txt",'w+') #create the file
-f.write('%f ' %S_vip1.num_spikes)
-f.close()
-# Layer 2/3
-f=open(savedir+"/S_e23numspike.txt",'w+') #create the file
-f.write('%f ' %S_e23.num_spikes)
-f.close()
-f=open(savedir+"/S_pv23numspike.txt",'w+') #create the file
-f.write('%f ' %S_pv23.num_spikes)
-f.close()
-f=open(savedir+"/S_sst23numspike.txt",'w+') #create the file
-f.write('%f ' %S_sst23.num_spikes)
-f.close()
-f=open(savedir+"/S_vip23numspike.txt",'w+') #create the file
-f.write('%f ' %S_vip23.num_spikes)
-f.close()
-# Layer 4
-f=open(savedir+"/S_e4numspike.txt",'w+') #create the file
-f.write('%f ' %S_e4.num_spikes)
-f.close()
-f=open(savedir+"/S_pv4numspike.txt",'w+') #create the file
-f.write('%f ' %S_pv4.num_spikes)
-f.close()
-f=open(savedir+"/S_sst4numspike.txt",'w+') #create the file
-f.write('%f ' %S_sst4.num_spikes)
-f.close()
-f=open(savedir+"/S_vip4numspike.txt",'w+') #create the file
-f.write('%f ' %S_vip4.num_spikes)
-f.close()
-# Layer 5
-f=open(savedir+"/S_e5numspike.txt",'w+') #create the file
-f.write('%f ' %S_e5.num_spikes)
-f.close()
-f=open(savedir+"/S_pv5numspike.txt",'w+') #create the file
-f.write('%f ' %S_pv5.num_spikes)
-f.close()
-f=open(savedir+"/S_sst5numspike.txt",'w+') #create the file
-f.write('%f ' %S_sst5.num_spikes)
-f.close()
-f=open(savedir+"/S_vip5numspike.txt",'w+') #create the file
-f.write('%f ' %S_vip5.num_spikes)
-f.close()
-# Layer 6
-f=open(savedir+"/S_e6numspike.txt",'w+') #create the file
-f.write('%f ' %S_e6.num_spikes)
-f.close()
-f=open(savedir+"/S_pv6numspike.txt",'w+') #create the file
-f.write('%f ' %S_pv6.num_spikes)
-f.close()
-f=open(savedir+"/S_sst6numspike.txt",'w+') #create the file
-f.write('%f ' %S_sst6.num_spikes)
-f.close()
-f=open(savedir+"/S_vip6numspike.txt",'w+') #create the file
-f.write('%f ' %S_vip6.num_spikes)
-f.close()
-
- 
-# Save the total number of spikes for each neuron in files
-# You could also compute this direclty from the spikes files without needing this
-#
-# I write the total number of spikes for each neuron of one group in the same file
-# Layer 2/3
-np.savetxt(savedir+'/spike_counts_vip1.txt', S_vip1.count, fmt='%d')
-np.savetxt(savedir+'/spike_counts_e23.txt', S_e23.count, fmt='%d')
-np.savetxt(savedir+'/spike_counts_pv23.txt', S_pv23.count, fmt='%d')
-np.savetxt(savedir+'/spike_counts_sst23.txt', S_sst23.count, fmt='%d')
-np.savetxt(savedir+'/spike_counts_vip23.txt', S_vip23.count, fmt='%d')
-# Layer 4
-np.savetxt(savedir+'/spike_counts_e4.txt', S_e4.count, fmt='%d')
-np.savetxt(savedir+'/spike_counts_pv4.txt', S_pv4.count, fmt='%d')
-np.savetxt(savedir+'/spike_counts_sst4.txt', S_sst4.count, fmt='%d')
-np.savetxt(savedir+'/spike_counts_vip4.txt', S_vip4.count, fmt='%d')
-# Layer 5
-np.savetxt(savedir+'/spike_counts_e5.txt', S_e5.count, fmt='%d')
-np.savetxt(savedir+'/spike_counts_pv5.txt', S_pv5.count, fmt='%d')
-np.savetxt(savedir+'/spike_counts_sst5.txt', S_sst5.count, fmt='%d')
-np.savetxt(savedir+'/spike_counts_vip5.txt', S_vip5.count, fmt='%d')
-# Layer 6
-np.savetxt(savedir+'/spike_counts_e6.txt', S_e6.count, fmt='%d')
-np.savetxt(savedir+'/spike_counts_pv6.txt', S_pv6.count, fmt='%d')
-np.savetxt(savedir+'/spike_counts_sst6.txt', S_sst6.count, fmt='%d')
-np.savetxt(savedir+'/spike_counts_vip6.txt', S_vip6.count, fmt='%d')
+# a = np.array([0.97916667, 0.87363931, 3.81538462, 3.65957447, 7.83177570, 1.76363636, 5.51020408, 2.52830189, 0.37037037, 8.36240952, 4.34920635, 4.14285714, 5.63636364, 1.67408047, 2.93761141, 6.60784314, 3.68421053])
+# 
+# b = np.array([0.70833333, 0.68887908, 2.67692308, 3.40425532, 5.90654206, 1.38811881, 3.30241187, 1.54716981, 0.37037037, 2.57931542, 3.71428571, 3.71428571, 5.45454545, 0.97315195, 2.09803922, 6.03921569, 3.15789474])
+# 
+# c = np.array([650, 930., 1460., 870., 1405., 890., 1980., 2105., 240., 4740., 930., 530., 870., 1770., 1170., 885., 1620.])
 

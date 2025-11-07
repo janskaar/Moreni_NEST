@@ -174,19 +174,19 @@ class Network:
         if "spike_recorder" in self.sim_dict["rec_dev"]:
             if nest.Rank() == 0:
                 print("  Creating spike recorders.")
-            sd_dicts = [{"record_to": "ascii", "label": os.path.join(self.data_path, "spike_recorder" + "_" + pop)} for pop in self.pop_names]
+            sd_dicts = [{"record_to": "memory", "label": os.path.join(self.data_path, "spike_recorder" + "_" + pop)} for pop in self.pop_names]
             self.spike_recorders = nest.Create("spike_recorder", n=self.num_pops, params=sd_dicts)
 
-        if "voltmeter" in self.sim_dict["rec_dev"]:
+        if "multimeter" in self.sim_dict["rec_dev"]:
             if nest.Rank() == 0:
-                print("  Creating voltmeters.")
-            vm_dict = {
-                "interval": self.sim_dict["rec_V_int"],
-                "record_to": "ascii",
-                "record_from": ["V_m"],
-                "label": os.path.join(self.data_path, "voltmeter"),
-            }
-            self.voltmeters = nest.Create("voltmeter", n=self.num_pops, params=vm_dict)
+                print("Creating multimeters.")
+            mm_dicts = [{
+                "interval": self.sim_dict["rec_mm_int"],
+                "record_to": "memory",
+                "record_from": self.sim_dict["rec_from_mm"],
+                "label": os.path.join(self.data_path, "multimeter" + "_" + pop),
+            } for pop in self.pop_names]
+            self.multimeters = nest.Create("multimeter", n=self.num_pops, params=mm_dicts)
 
 
     def _get_conn_spec_syn_spec(self, source_index, target_index):
@@ -239,12 +239,12 @@ class Network:
 
         for i, target_pop in enumerate(self.pops):
             for j, source_pop in enumerate(self.pops):
-                params = self._get_conn_spec_syn_spec(i, j)
+                params = self._get_conn_spec_syn_spec(j, i)
                 if params is None:
                     continue
                 conn_specs = params[0]
                 syn_specs = params[1]
-                
+
                 for conn_spec, syn_spec in zip(conn_specs, syn_specs):
                     nest.Connect(source_pop, target_pop, conn_spec=conn_spec, syn_spec=syn_spec)
 
@@ -256,51 +256,86 @@ class Network:
         for i, target_pop in enumerate(self.pops):
             if "spike_recorder" in self.sim_dict["rec_dev"]:
                 nest.Connect(target_pop, self.spike_recorders[i])
-            if "voltmeter" in self.sim_dict["rec_dev"]:
-                nest.Connect(self.voltmeters[i], target_pop)
-
-    def __connect_thalamic_stim_input(self):
-        """Connects the thalamic input to the neuronal populations."""
-        if nest.Rank() == 0:
-            print("Connecting thalamic input.")
-
-        # connect Poisson input to thalamic population
-        nest.Connect(self.poisson_th, self.thalamic_population)
-
-        # connect thalamic population to neuronal populations
-        for i, target_pop in enumerate(self.pops):
-            conn_dict_th = {"rule": "fixed_total_number", "N": self.num_th_synapses[i]}
-
-            syn_dict_th = {
-                "weight": nest.math.redraw(
-                    nest.random.normal(mean=self.weight_th, std=self.weight_th * self.net_dict["weight_rel_std"]),
-                    min=0.0,
-                    max=np.inf,
-                ),
-                "delay": nest.math.redraw(
-                    nest.random.normal(
-                        mean=self.stim_dict["delay_th_mean"],
-                        std=(self.stim_dict["delay_th_mean"] * self.stim_dict["delay_th_rel_std"]),
-                    ),
-                    # resulting minimum delay is equal to resolution, see:
-                    # https://nest-simulator.readthedocs.io/en/latest/nest_behavior
-                    # /random_numbers.html#rounding-effects-when-randomizing-delays
-                    min=nest.resolution - 0.5 * nest.resolution,
-                    max=np.inf,
-                ),
-            }
-
-            nest.Connect(self.thalamic_population, target_pop, conn_spec=conn_dict_th, syn_spec=syn_dict_th)
-
-
+            if "multimeter" in self.sim_dict["rec_dev"]:
+                nest.Connect(self.multimeters[i], target_pop[:min(80, len(target_pop))])
 
 ##
 
 from network_params import net_dict
 from sim_params import sim_dict
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 
-net = Network(sim_dict, net_dict, None)
-net.create()
-net.connect()
-net.simulate(500.)
+population_rates = []
+# s_AMPAs = []
+# vms = []
+for i in range(5):
+    sim_dict["rng_seed"] = i + 1
+    net = Network(sim_dict, net_dict, None)
+    net.create()
+    net.connect()
+    net.simulate(1000.)
+    bins = np.arange(0, 501, 1) - 0.001
+    spike_histograms = [np.histogram(sr.events["times"], bins=bins)[0] for sr in net.spike_recorders]
+    population_rates.append([np.mean(hist / net.population_sizes[i] * 1000) for i, hist in enumerate(spike_histograms)])
+#     s_AMPA = net.multimeters[1].events["s_AMPA"]
+#     senders = net.multimeters[1].events["senders"]
+#     times = net.multimeters[1].events["times"]
+#     s_AMPA = [s_AMPA[senders == sender] for sender in np.unique(senders)]
+#     times = [times[senders == sender] for sender in np.unique(senders)]
+#     s_AMPAs.append(s_AMPA)
+# 
+#     vm = net.multimeters[1].events["V_m"]
+#     senders = net.multimeters[1].events["senders"]
+#     times = net.multimeters[1].events["times"]
+#     vm = [vm[senders == sender] for sender in np.unique(senders)]
+#     times = [times[senders == sender] for sender in np.unique(senders)]
+#     vms.append(vm)
+
+population_rates = np.array(population_rates)
+# s_AMPAs = np.array(s_AMPAs)
+# vms = np.array(vms)
+
+##
+
+# bins = np.arange(0, 501, 1) - 0.001
+# spike_histograms = [np.histogram(sr.events["times"], bins=bins)[0] for sr in net.spike_recorders]
+# population_rates = [hist / net.population_sizes[i] * 1000 for i, hist in enumerate(spike_histograms)]
+# 
+# 
+# def plot_network(variables):
+#     gs = GridSpec(ncols=4, nrows=5)
+#     index = 0
+#     fig = plt.figure()
+#     for var in variables:
+#         i1, i2 = index // 4, index % 4
+#         ax = fig.add_subplot(gs[i1, i2])
+#         ax.plot(var, color="black")
+#         if index == 0:
+#             index += 4
+#         else:
+#             index += 1
+# 
+# plot_network(population_rates)
+# plt.show()
+# 
+# brian_fr = np.array([0.97916667, 0.87363931, 3.81538462, 3.65957447, 7.83177570, 1.76363636, 5.51020408, 2.52830189, 0.37037037, 8.36240952, 4.34920635, 4.14285714, 5.63636364, 1.67408047, 2.93761141, 6.60784314, 3.68421053])
+# nest_fr = np.array([r.mean() for r in population_rates])
+
+
+
+
+# brian = [0.86799242, 0.96899088, 3.65454545, 3.54352031, 8.19813084,
+#        1.87805581, 4.92857143, 3.10943396, 0.45185185, 8.58827138,
+#        4.13044733, 3.86720779, 5.27272727, 1.78435183, 2.79500891,
+#        6.74046346, 4.05263158])
+# 
+# nest = [0.72916667, 0.86499596, 3.63076923, 2.80851064, 7.8317757 ,
+#        1.70891089, 4.97959184, 3.09433962, 0.59259259, 7.91632928,
+#        4.19047619, 3.75      , 4.90909091, 1.52773376, 2.23529412,
+#        6.35294118, 3.78947368])
+
+
+# s_AMPA = [np.array([mm.events["s_AMPA"][mm.events["senders"] == s] for s in np.unique(mm.events["senders"])]) for mm in net.multimeters]
+# V_m = [np.array([mm.events["V_m"][mm.events["senders"] == s] for s in np.unique(mm.events["senders"])]) for mm in net.multimeters]
 

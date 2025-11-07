@@ -40,7 +40,8 @@ sim_dict = {
     # list of recording devices, default is 'spike_recorder'. A 'voltmeter' can
     # be added to record membrane voltages of the neurons. Nothing will be
     # recorded if an empty list is given.
-    "rec_dev": ["spike_recorder"],
+    "rec_dev": ["spike_recorder", "multimeter"],
+    "rec_from_mm": ["V_m", "s_AMPA"],
     # path to save the output data
     "data_path": os.path.join(os.getcwd(), "data/"),
     # Seed for NEST
@@ -53,7 +54,7 @@ sim_dict = {
     # If you have 4 or more MPI processes, then you can set this value to 1.
     "local_num_threads": 1,
     # recording interval of the membrane potential (in ms)
-    "rec_V_int": 1.0,
+    "rec_mm_int": 1.0,
     # if True, data will be overwritten,
     # if False, a NESTError is raised if the files already exist
     "overwrite_files": True,
