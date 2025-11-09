@@ -1,4 +1,5 @@
 import numpy as np
+import os
 
 net_dict = {
     # neuron model
@@ -23,9 +24,9 @@ net_dict = {
 
 
     # taken from connectionsPro_final.txt, Cpl1_final.txt, Cptol1_final.txt. L1->L1 found in simulation scripts.
-    "conn_probs": np.loadtxt("connectivity.csv", delimiter=","),
+    "conn_probs": np.loadtxt(os.path.join("parameter_files", "connectivity.csv"), delimiter=","),
     # taken from connectionsStren.txt, Csl1.txt, Cstol1.txt. L1->L1 found in simulation scripts.
-    "weights": np.loadtxt("synaptic_weights.csv", delimiter=","),
+    "weights": np.loadtxt(os.path.join("parameter_files", "synaptic_weights.csv"), delimiter=","),
     "weight_scale": 5.,
     "nu_ext": [650, 930, 1460, 870, 1405, 890, 1980, 2105, 240, 4740, 930, 530, 870, 1770, 1170, 885, 1620],
 #     "I_ext": [
