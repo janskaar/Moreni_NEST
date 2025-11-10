@@ -20,8 +20,7 @@ class Network:
             else:
                 os.mkdir(self.data_path)
                 message = "  Directory has been created."
-            print("Data will be written to: {}\n{}\n".format(self.data_path, message))
-
+            print(f"Data will be written to: {self.data_format}\n{message}\n")
 
         self.pop_names = self.net_dict["populations"]
         # derive parameters based on input dictionaries
@@ -31,33 +30,17 @@ class Network:
         self._setup_nest()
 
     def create(self):
-        """Creates all network nodes.
-
-        Neuronal populations and recording and stimulation devices are created.
-
+        """
+        Creates all network nodes.
         """
         self._create_populations()
         if len(self.sim_dict["rec_dev"]) > 0:
             self._create_recording_devices()
         self._create_poisson_bg_input()
 
-
     def connect(self):
-        """Connects the network.
-
-        Recurrent connections among neurons of the neuronal populations are
-        established, and recording and stimulation devices are connected.
-
-        The ``self.__connect_*()`` functions use ``nest.Connect()`` calls which
-        set up the postsynaptic connectivity.
-        Since the introduction of the 5g kernel in NEST 2.16.0 the full
-        connection infrastructure including presynaptic connectivity is set up
-        afterwards in the preparation phase of the simulation.
-        The preparation phase is usually induced by the first
-        ``nest.Simulate()`` call.
-        For including this phase in measurements of the connection time,
-        we induce it here explicitly by calling ``nest.Prepare()``.
-
+        """
+        Connects the network.
         """
         self._connect_populations()
 
@@ -69,7 +52,8 @@ class Network:
         nest.Cleanup()
 
     def simulate(self, t_sim):
-        """Simulates the microcircuit.
+        """
+        Simulates the microcircuit.
 
         Parameters
         ----------
@@ -90,22 +74,29 @@ class Network:
         N_tot = self.net_dict["N_tot"]
         N_tot_orig = sum(self.net_dict["original_population_sizes"][1:])
 
-        self.population_sizes = [int(np.round(s * N_tot / N_tot_orig)) for s in self.net_dict["original_population_sizes"]]
-
+        self.population_sizes = [
+            int(np.round(s * N_tot / N_tot_orig))
+            for s in self.net_dict["original_population_sizes"]
+        ]
 
     def _create_poisson_bg_input(self):
         self.bg_poisson_generators = []
         for rate in self.net_dict["nu_ext"]:
-            self.bg_poisson_generators.append(nest.Create("poisson_generator", params={"rate": rate}))
-
+            self.bg_poisson_generators.append(
+                nest.Create("poisson_generator", params={"rate": rate})
+            )
 
     def _connect_poisson_bg_input(self):
         for poisson_gen, pop in zip(self.bg_poisson_generators, self.pops):
-            nest.Connect(poisson_gen, pop, syn_spec={"weight": self.net_dict["weight_ext"], "receptor_type": 1})
-
+            nest.Connect(
+                poisson_gen,
+                pop,
+                syn_spec={"weight": self.net_dict["weight_ext"], "receptor_type": 1},
+            )
 
     def _setup_nest(self):
-        """Initializes the NEST kernel.
+        """
+        Initializes the NEST kernel.
 
         Reset the NEST kernel and pass parameters to it.
         """
@@ -124,24 +115,24 @@ class Network:
             print("RNG seed: {}".format(rng_seed))
             print("Total number of virtual processes: {}".format(vps))
 
-
     def _get_neuron_parameters(self, index):
-        params = {"E_L": self.net_dict["neuron_params"]["E_L"][index],
-                  "E_ex": self.net_dict["neuron_params"]["E_ex"],
-                  "E_in": self.net_dict["neuron_params"]["E_in"][index],
-                  "V_th": self.net_dict["neuron_params"]["V_th"][index],
-                  "V_reset": self.net_dict["neuron_params"]["V_reset"][index],
-                  "C_m": self.net_dict["neuron_params"]["C_m"][index],
-                  "g_L": self.net_dict["neuron_params"]["g_L"][index],
-                  "t_ref": self.net_dict["neuron_params"]["t_ref"][index],
-                  "tau_AMPA": self.net_dict["neuron_params"]["tau_AMPA"],
-                  "tau_GABA": self.net_dict["neuron_params"]["tau_GABA"],
-                  "tau_rise_NMDA": self.net_dict["neuron_params"]["tau_rise_NMDA"],
-                  "tau_decay_NMDA": self.net_dict["neuron_params"]["tau_decay_NMDA"],
-                  "alpha": self.net_dict["neuron_params"]["alpha"],
-                  "conc_Mg2": self.net_dict["neuron_params"]["conc_Mg2"]}
+        params = {
+            "E_L": self.net_dict["neuron_params"]["E_L"][index],
+            "E_ex": self.net_dict["neuron_params"]["E_ex"],
+            "E_in": self.net_dict["neuron_params"]["E_in"][index],
+            "V_th": self.net_dict["neuron_params"]["V_th"][index],
+            "V_reset": self.net_dict["neuron_params"]["V_reset"][index],
+            "C_m": self.net_dict["neuron_params"]["C_m"][index],
+            "g_L": self.net_dict["neuron_params"]["g_L"][index],
+            "t_ref": self.net_dict["neuron_params"]["t_ref"][index],
+            "tau_AMPA": self.net_dict["neuron_params"]["tau_AMPA"],
+            "tau_GABA": self.net_dict["neuron_params"]["tau_GABA"],
+            "tau_rise_NMDA": self.net_dict["neuron_params"]["tau_rise_NMDA"],
+            "tau_decay_NMDA": self.net_dict["neuron_params"]["tau_decay_NMDA"],
+            "alpha": self.net_dict["neuron_params"]["alpha"],
+            "conc_Mg2": self.net_dict["neuron_params"]["conc_Mg2"],
+        }
         return params
-
 
     def _create_populations(self):
         if nest.Rank() == 0:
@@ -150,7 +141,11 @@ class Network:
         self.pops = []
         for i in np.arange(self.num_pops):
             neuron_params = self._get_neuron_parameters(i)
-            population = nest.Create(self.net_dict["neuron_model"], self.population_sizes[i], params=neuron_params)
+            population = nest.Create(
+                self.net_dict["neuron_model"],
+                self.population_sizes[i],
+                params=neuron_params,
+            )
 
             self.pops.append(population)
 
@@ -161,9 +156,9 @@ class Network:
                 for pop in self.pops:
                     f.write("{} {}\n".format(pop[0].global_id, pop[-1].global_id))
 
-
     def _create_recording_devices(self):
-        """Creates one recording device of each kind per population.
+        """
+        Creates one recording device of each kind per population.
 
         Only devices which are given in ``sim_dict['rec_dev']`` are created.
 
@@ -174,20 +169,32 @@ class Network:
         if "spike_recorder" in self.sim_dict["rec_dev"]:
             if nest.Rank() == 0:
                 print("  Creating spike recorders.")
-            sd_dicts = [{"record_to": "memory", "label": os.path.join(self.data_path, "spike_recorder" + "_" + pop)} for pop in self.pop_names]
-            self.spike_recorders = nest.Create("spike_recorder", n=self.num_pops, params=sd_dicts)
+            sd_dicts = [
+                {
+                    "record_to": "memory",
+                    "label": os.path.join(self.data_path, "spike_recorder" + "_" + pop),
+                }
+                for pop in self.pop_names
+            ]
+            self.spike_recorders = nest.Create(
+                "spike_recorder", n=self.num_pops, params=sd_dicts
+            )
 
         if "multimeter" in self.sim_dict["rec_dev"]:
             if nest.Rank() == 0:
                 print("Creating multimeters.")
-            mm_dicts = [{
-                "interval": self.sim_dict["rec_mm_int"],
-                "record_to": "memory",
-                "record_from": self.sim_dict["rec_from_mm"],
-                "label": os.path.join(self.data_path, "multimeter" + "_" + pop),
-            } for pop in self.pop_names]
-            self.multimeters = nest.Create("multimeter", n=self.num_pops, params=mm_dicts)
-
+            mm_dicts = [
+                {
+                    "interval": self.sim_dict["rec_mm_int"],
+                    "record_to": "memory",
+                    "record_from": self.sim_dict["rec_from_mm"],
+                    "label": os.path.join(self.data_path, "multimeter" + "_" + pop),
+                }
+                for pop in self.pop_names
+            ]
+            self.multimeters = nest.Create(
+                "multimeter", n=self.num_pops, params=mm_dicts
+            )
 
     def _get_conn_spec_syn_spec(self, source_index, target_index):
         """
@@ -199,39 +206,49 @@ class Network:
         if p == 0:
             return None
         if source_index in self.net_dict["inhibitory_indices"]:
-            conn_specs = [{"rule": "pairwise_bernoulli",
-                         "p": p}]
+            conn_specs = [{"rule": "pairwise_bernoulli", "p": p}]
 
+            w = (
+                self.net_dict["weights"][source_index][target_index]
+                * self.net_dict["weight_scale"]
+            ) / (self.population_sizes[source_index] * p)
 
-            w = (self.net_dict["weights"][source_index][target_index] * self.net_dict["weight_scale"]) \
-               /(self.population_sizes[source_index] * p)
-
-            syn_specs = [{"delay": self.net_dict["delay"],
-                        "weight": w,
-                        "receptor_type": 2}]
+            syn_specs = [
+                {"delay": self.net_dict["delay"], "weight": w, "receptor_type": 2}
+            ]
 
         else:
-            conn_specs = [{"rule": "pairwise_bernoulli", # AMPA
-                          "p": self.net_dict["fraction_AMPA"]* p},
-                         {"rule": "pairwise_bernoulli", # NMDA
-                          "p": self.net_dict["fraction_NMDA"] * p}]
+            conn_specs = [
+                {
+                    "rule": "pairwise_bernoulli",  # AMPA
+                    "p": self.net_dict["fraction_AMPA"] * p,
+                },
+                {
+                    "rule": "pairwise_bernoulli",  # NMDA
+                    "p": self.net_dict["fraction_NMDA"] * p,
+                },
+            ]
 
-            w_AMPA = (self.net_dict["weights"][source_index][target_index] * self.net_dict["weight_scale"]) \
-                    /(self.population_sizes[source_index] * p * self.net_dict["fraction_AMPA"])
+            w_AMPA = (
+                self.net_dict["weights"][source_index][target_index]
+                * self.net_dict["weight_scale"]
+            ) / (
+                self.population_sizes[source_index] * p * self.net_dict["fraction_AMPA"]
+            )
 
-            w_NMDA = (self.net_dict["weights"][source_index][target_index] * self.net_dict["weight_scale"]) \
-                    /(self.population_sizes[source_index] * p * self.net_dict["fraction_NMDA"])
+            w_NMDA = (
+                self.net_dict["weights"][source_index][target_index]
+                * self.net_dict["weight_scale"]
+            ) / (
+                self.population_sizes[source_index] * p * self.net_dict["fraction_NMDA"]
+            )
 
-
-            syn_specs = [{"delay": self.net_dict["delay"],
-                        "weight": w_AMPA,
-                        "receptor_type": 1},
-                        {"delay": self.net_dict["delay"],
-                        "weight": w_NMDA,
-                        "receptor_type": 3}]
+            syn_specs = [
+                {"delay": self.net_dict["delay"], "weight": w_AMPA, "receptor_type": 1},
+                {"delay": self.net_dict["delay"], "weight": w_NMDA, "receptor_type": 3},
+            ]
 
         return conn_specs, syn_specs
-
 
     def _connect_populations(self):
         if nest.Rank() == 0:
@@ -246,7 +263,9 @@ class Network:
                 syn_specs = params[1]
 
                 for conn_spec, syn_spec in zip(conn_specs, syn_specs):
-                    nest.Connect(source_pop, target_pop, conn_spec=conn_spec, syn_spec=syn_spec)
+                    nest.Connect(
+                        source_pop, target_pop, conn_spec=conn_spec, syn_spec=syn_spec
+                    )
 
     def _connect_recording_devices(self):
         """Connects the recording devices to the microcircuit."""
@@ -257,7 +276,6 @@ class Network:
             if "spike_recorder" in self.sim_dict["rec_dev"]:
                 nest.Connect(target_pop, self.spike_recorders[i])
             if "multimeter" in self.sim_dict["rec_dev"]:
-                nest.Connect(self.multimeters[i], target_pop[:min(80, len(target_pop))])
-
-##
-
+                nest.Connect(
+                    self.multimeters[i], target_pop[: min(80, len(target_pop))]
+                )

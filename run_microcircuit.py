@@ -12,9 +12,15 @@ for i in range(5):
     net = Network(sim_dict, net_dict, None)
     net.create()
     net.connect()
-    net.simulate(1000.)
+    net.simulate(1000.0)
     bins = np.arange(0, 501, 1) - 0.001
-    spike_histograms = [np.histogram(sr.events["times"], bins=bins)[0] for sr in net.spike_recorders]
-    population_rates.append([np.mean(hist / net.population_sizes[i] * 1000) for i, hist in enumerate(spike_histograms)])
+    spike_histograms = [
+        np.histogram(sr.events["times"], bins=bins)[0] for sr in net.spike_recorders
+    ]
+    population_rates.append(
+        [
+            np.mean(hist / net.population_sizes[i] * 1000)
+            for i, hist in enumerate(spike_histograms)
+        ]
+    )
 population_rates = np.array(population_rates)
-
