@@ -20,7 +20,6 @@ class Network:
             else:
                 os.mkdir(self.data_path)
                 message = "  Directory has been created."
-            print(f"Data will be written to: {self.data_format}\n{message}\n")
 
         self.pop_names = self.net_dict["populations"]
         # derive parameters based on input dictionaries
@@ -51,7 +50,7 @@ class Network:
         nest.Prepare()
         nest.Cleanup()
 
-    def simulate(self, t_sim):
+    def simulate(self):
         """
         Simulates the microcircuit.
 
@@ -61,6 +60,7 @@ class Network:
             Simulation time (in ms).
 
         """
+        t_sim = self.sim_dict["t_sim"]
         if nest.Rank() == 0:
             print("Simulating {} ms.".format(t_sim))
 
@@ -171,7 +171,7 @@ class Network:
                 print("  Creating spike recorders.")
             sd_dicts = [
                 {
-                    "record_to": "memory",
+                    "record_to": "ascii",
                     "label": os.path.join(self.data_path, "spike_recorder" + "_" + pop),
                 }
                 for pop in self.pop_names

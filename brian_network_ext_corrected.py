@@ -5,20 +5,21 @@ import random
 import matplotlib.pyplot as plt
 import os
 
-startbuild = time.time() #used to compute the time to run some part of the code
 
-savedir = "brian_data/"
+runner_id = int(sys.argv[1])
+
+savedir = os.path.join("brian_data", "runner_" + str(runner_id))
 
 if not os.path.exists(savedir):
     os.makedirs(savedir)
 
-runtime = 1000.0 * ms # How long you want the simulation to be
+np.random.seed(runner_id+1)
+
+runtime = 10000.0 * ms # How long you want the simulation to be
 dt_sim=0.1 #ms         # Resolution of the simulation
 G=5 #global constant to increase all the connections weights
 Gl1=5 #global constant to increase all the connections weights in Layer 1
 Ntot=5000 #Total number of neurons in the simulation
-
-np.random.seed(200) #If you want the exact same simulation every time uncomment this
 
 # External input to the neurons
 Iext=np.loadtxt('import_files/Iext0.txt') #File that contain the external input for layer 2/3,4,5,6
@@ -31,9 +32,6 @@ nu_ext_file='import_files/nu_ext.txt' #This is the file that contains the backgr
 nu_ext=np.loadtxt(nu_ext_file) #I upload the file containing the backround noise to the neurons
 nu_extl1= 650 *Hz
 
-# If you want different receptor weight for each particular group receiving the external background noise- you will also need this:
-#wext=np.loadtxt('import_files/wext.txt')
-# I chose to have the same weight for all the receptors of the different neurons type receiving the external noise
 
 ##### ----------------------------------------------#####
 ##### Percentage of neurons in the simulation       #####
@@ -62,13 +60,12 @@ N=N.astype(int) # Number of neurons should be of type int
 # Now I correct the matrix I obtained:
 # the sum of each layer should return the total number of neurons in that layer
 for k in range(0,4):
-    N[k][0]+= n_tot[k][0]-sum(N[k]) #sum(N[k]) is the total number of neurons in that layer I have in the matrix
-                                    #n_tot[k][0] is the number of neuorons in that layer from the percentages
-                                    #If the two numbers don't match the N[k][0] (excitaotry in each layer) gets updated
+    N[k][0]+= n_tot[k][0]-sum(N[k])
 
-##### ----------------------------------------------#####
-#####               Synapse model                   #####
-##### --------------------------------------------- #####
+
+##################################################
+## Synapse model  
+##################################################
 
 # Percentage of AMPA and NMDA receptors in excitatory and inhibitory neurons
 e_ampa=0.8
@@ -77,10 +74,6 @@ i_ampa=0.8
 i_nmda=0.2
 
 w_ext=1                                 #Weight for the external background noise going to AMPA receptor. Is the same value for every population.
-                                        #This is the weight in front of s_tot. (see below in eq. ampa ext)
-                                        #If you don't want it to be the same for every population:
-                                        #wext is also in the equations of AMPA ext (see below in eq. ampa ext), if needed just uncomment it there.
-
 gext=1                                  #How much you affect s_ampa with 1 spike from the Poisson generator.
 
 #V_I = -70 * mV  each group has his own!!  # Reversal potential of inhibitory synapses
@@ -93,7 +86,7 @@ alpha_NMDA = 0.5 * kHz                     # Saturation constant of NMDA-type co
 Mg2 = 1.                                   # Magnesiumn concentration
 d = 2 * ms                                 # Transmission delay of recurrent excitatory and inhibitory connections
 
-# print("Importing the data")
+
 # Matrices containing all the connections (probabilities and strenght) 
 # This are data from the Allen database
 Cp = np.loadtxt('import_files/connectionsPro_final.txt') #connenctions probabilities between the 16 groups in the 4 layers (not VIP1)
@@ -124,24 +117,6 @@ Cm_l1= 37.11
 gl_l1= 4.07
 Vl_l1= -65.5
 tau_ref_l1= 3.5
-
-#To compute the time of import of all the files
-end_import= time.time() 
-
-# Check if everything is correct 
-# print('------------------Check--------------------------------')
-# print('Cm')
-# print(Cm)
-# print('gl')
-# print(gl)
-# print(Vl)
-# print(Vt)
-# print(type(Vt[0][1]))
-# print(tau_ref)
-
-##### ----------------------------------------------#####
-#####             Equations of synapse model        #####
-##### --------------------------------------------- #####
 
 # Equations of the model. 
 # Each neuron is governed by this equations
@@ -280,13 +255,11 @@ eqs_gaba_l1= '''s_GABA_tot12_post= w_GABA* s_GABA : 1 (summed)
     w_GABA: 1
 '''
 
-##### ----------------------------------------------#####
-#####   Create the populations in the model         #####
-##### --------------------------------------------- #####
-
-# To compute the time to build the populations 
-start_populations= time.time()
-
+##################################################
+# CREATE POPULATIONS
+##################################################
+print("Creating populations", flush=True)
+t0 = time.time()
 # I create the cortical column model with the groups 
 # I am creating all the populations in each layer
 pops=[[],[],[],[]]
@@ -295,7 +268,7 @@ for h in range(0,4):
 
         # I create a neuron population, number of neurons and parameters differ for each group
         pop = NeuronGroup(N[h][z], model=eqs, threshold='v > Vth', reset='v = V_rest', refractory=tau_ref[h][z]*ms, method='rk4')
-        
+
         # The values are taken from the matrices with specific values
         pop.C_m = Cm[h][z]* pF
         pop.g_m= gl[h][z]*nS
@@ -304,7 +277,6 @@ for h in range(0,4):
         pop.V_rest= Vr[h][z] *mV
         pop.Vth=Vt[h][z]*mV
         pop.g_AMPA_ext= 1*nS #I am using the same value for every population
-        #pop.w_ext= 1 #wext[h][z] # I chose the same for everyone now, if you want a different one uncomment this 
         pop.g_AMPA_rec = 1*nS #0.95*nS #I am using the same value for every population
         pop.g_NMDA = 1*nS #0.05*nS #I am using the same value for every population
         pop.g_GABA = 1*nS #I am using the same value for every population
@@ -319,14 +291,6 @@ for h in range(0,4):
         pops[h].append(pop) #I append the population to the matrix with all the populations
         del (pop)
 
-
-#IMPORTANT:
-# pops: each row is a layer, each column a different subpopulation group (e,pv,sst,vip)
-# rows: 0=layer2/3, 1=layer4, 2=layer5, 3=layer6
-# columns 0=e 1=pv 2=sst 3=vip
-# For example: pop[1][0] is excitatory neurons in layer 4
-
-#I create the population in layer 1 (this is not in the previous for loop)
 Vth_l1= Vt_l1*mV
 Vrest_l1=Vr_l1*mV
 popl1 = NeuronGroup(Nl1, model=eqs, threshold='v > Vth_l1', reset='v = Vrest_l1', refractory=tau_ref_l1*ms, method='rk4')
@@ -337,7 +301,6 @@ popl1.V_L = Vl_l1 *mV
 popl1.V_I = Vl_l1 *mV
 
 popl1.g_AMPA_ext= 1*nS
-#popl1.wext= 1
 popl1.g_AMPA_rec = 1*nS
 popl1.g_NMDA = 1*nS
 popl1.g_GABA = 1*nS
@@ -346,19 +309,44 @@ popl1.I_ext= Iext_l1* pA
 for k in range(0,int(Nl1)):
     popl1[k].v[0]=Vrest_l1
 
-# Compute the time to build the populations
-end_populations= time.time() 
+# Function to monitor
+# Spike detectors
+def spike_det(pops,layer,rec=True):
+    e_spikes = SpikeMonitor(pops[layer][0],record=rec)  #create the spike detector for e
+    pv_spikes= SpikeMonitor(pops[layer][1],record=rec)  #create the spike detector for group pv
+    sst_spikes= SpikeMonitor(pops[layer][2],record=rec) #create the spike detector for group sst
+    vip_spikes= SpikeMonitor(pops[layer][3],record=rec) #create the spike detector for group vip
 
-##### ----------------------------------------------#####
-#####   Create background noise to the column       #####
-##### --------------------------------------------- #####
+    return e_spikes,pv_spikes,sst_spikes,vip_spikes
 
-# I create a poisson generator for each neuron in the population, 
-# all the neurons infact are receiving the background inputs
+# Subgroup where from each group I record only a number n_activity of neurons
+def spike_det_n(pops,layer,n_activity):
+    e_spikes = SpikeMonitor(pops[layer][0][:n_activity])  #create the spike detector for e
+    pv_spikes= SpikeMonitor(pops[layer][1][:n_activity])  #create the spike detector for subgroup pv
+    sst_spikes= SpikeMonitor(pops[layer][2][:n_activity]) #create the spike detector for subgroup sst
+    vip_spikes= SpikeMonitor(pops[layer][3][:n_activity]) #create the spike detector for subgroup vip
+
+    return e_spikes,pv_spikes,sst_spikes,vip_spikes
+
+# Rate detectors
+def rate_det(pops,layer):
+    e_rate = PopulationRateMonitor(pops[layer][0]) #create the rate det for e
+    pv_rate= PopulationRateMonitor(pops[layer][1]) #create the rate detector for subgroup pv
+    sst_rate= PopulationRateMonitor(pops[layer][2]) #create the rate detector for subgroup sst
+    vip_rate= PopulationRateMonitor(pops[layer][3])#create the rate detector for subgroup vip
+    return e_rate,pv_rate,sst_rate,vip_rate
+
+spike_monitors = [SpikeMonitor(popl1[:],record=True)]
+for i in range(4):
+    spike_monitors.extend(spike_det(pops, i, True))
+
+t1 = time.time()
+print(f"Done in {t1 - t0:.1f} seconds", flush=True)
+print("Creating connections", flush=True)
 
 # Function to connect each group to the noise generator
 def input_layer_connect(Num,pop,gext,nu_ext): #nu_ext must be in Hz!!
-    extinput = PoissonInput(pop, "s_AMPA_ext", N=1000, rate=nu_ext / 1000, weight=gext) #External noise generator
+    extinput = PoissonInput(pop, "s_AMPA_ext", N=1, rate=nu_ext, weight=gext) #External noise generator
     return extinput
 
 #LAYER 2/3
@@ -394,38 +382,12 @@ extinputs.append(input_layer_connect(N[3][3],pops[3][3],gext,nu_ext[3][3]* Hz))
 #Connect L1 to noise
 extinputs.append(input_layer_connect(Nl1,popl1,gext,nu_extl1)) #Connecting vip1 to noise
 
-##### ----------------------------------------------#####
-#####   Function to connect the populations         #####
-##### --------------------------------------------- #####
-
-# IMPORTANT!
-# THIS IS THE STRUCTURE OF THE FOLLOWING VERY LONG FUNCTION:
-# Read this to understand what is happening:
-
-# def connect_populations(sources list, targets list, flag nmda, weights matrix, propbability matrix, N matrix, populations):
-#             for loop on the sources
-#                 for loop on the targets
-#                     activate AMPA or GABA depending on the neuron type
-#                     set the parameters
-#                     activate NMDA
-
-#sources=[[layer,cell_type],[layer,cell_type]]  #sources[h][0] is the layer
-                                                #sources[h][1] is the cell type
 
 # Function to connect the populations (used for alla layers except L1)
 def connect_populations(sources,targets,G,Cs,Cp,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True):
 
-# Percentage of different receptors
-# I multiply the prob of connection by this 
-# Now is passed in the function no need to have it here
-    # e_ampa=0.8
-    # e_nmda=0.2
-    # i_ampa=0.8
-    # i_nmda=0.2
-
     All_C=[] #I will store all the connections here
 
-    # In the future I can have connections within same population stronger/weaker than the one between different populations
     wp_p=1  #multyply factor for connections within the same populations
     wp_m=1  #multyply factor for connections between different populations
 
@@ -521,12 +483,6 @@ def connect_populations(sources,targets,G,Cs,Cp,N,pops,d,e_ampa,e_nmda,i_ampa,i_
                     conn2.w_GABA= 0
                 else:
                     conn2.w_GABA=wp*G* Cs[4*s_layer+s_cell_type][4*t_layer+t_cell_type]/(Cp[4*s_layer+s_cell_type][4*t_layer+t_cell_type]*N[s_layer][s_cell_type])
-#                 print(" Sending: layer=%s, type=%s"%(s_layer,s_cell_type))
-#                 print(" Receiving: layer=%s, type=%s"%(t_layer,t_cell_type))
-#                 print("Printing the connections sent")
-#                 print(conn2.N_outgoing_pre)
-#                 print("Printing the connections arriving")
-#                 print(conn2.N_incoming_post)
                 conn2.delay='d'
                 All_C.append(conn2)
                 del conn2
@@ -608,18 +564,7 @@ def connect_source_tol1(sources,Gl1,Cs_tol1,Cp_tol1,N,pops,popl1,d,i_ampa,i_nmda
             del conn2
 
     return All_C
-# I have to assign to each source his own equation bijectively. This eqs_gaba[3*s_layer+s_cell_type-1]
-# trasform the pair [layer][cell_type] into a number corresponding to one of the 11 gaba equations
-# I want a correspondace between my matrix 4x4 (layer,cell type) and the matrix 16x16 where all the values of the connections are stored.
-# This is why I need #Cp[4*s_layer+s_cell_type][4*t_layer+t_cell_type]
 
-
-
-##### ------------------------------------------------#####
-#####   Function to connect many populations at once  #####
-##### ------------------------------------------------#####
-
-#Here I build different functions to connect the layers
 
 # CONNECTING ALL LAYERS (layer 2/3, 4, 5, 6)
 def connect_all_layers(Cs,Cp,G,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True):
@@ -664,79 +609,16 @@ def connect_l1_all(Gl1,Csl1,Cpl1,Cs_tol1,Cp_tol1,Cs_l1_l1,Cp_l1_l1,N,Nl1,pops,po
     conn= conn_l1_to_all+ conn_all_to_l1 + conn_l1_l1
     return conn
 
-
-
 ##### ------------------------------------------------------#####
 #####   Connecting all the layers by calling the functions  #####
 ##### ------------------------------------------------------#####
-
-# Compute the time to connect the populations between them
-start_connecting=time.time()
-# print('--------------------------------------------------')
-# print('Connecting layers')
-# print('--------------------------------------------------')
 
 # # I connect all the layers by calling the functions to connect
 conn_all_l1=connect_l1_all(Gl1,Csl1,Cpl1,Cs_tol1,Cp_tol1,Cs_l1_l1,Cp_l1_l1,N,Nl1,pops,popl1,d,i_ampa,i_nmda,nmda_on=True)
 conn_all=connect_all_layers(Cs,Cp,G,N,pops,d,e_ampa,e_nmda,i_ampa,i_nmda,nmda_on=True)
 # print('All layers now connected')
-end_connecting=time.time() # Compute the time it took to connect all populations
+
 connections = conn_all + conn_all_l1
-##### -----------------------------------------------------------------------------------#####
-##### Create the functions for the recording devices: Spike detectors and rate detectors #####
-##### -----------------------------------------------------------------------------------#####
-
-# Function to monitor
-# Spike detectors
-def spike_det(pops,layer,rec=True):
-    e_spikes = SpikeMonitor(pops[layer][0],record=rec)  #create the spike detector for e
-    pv_spikes= SpikeMonitor(pops[layer][1],record=rec)  #create the spike detector for group pv
-    sst_spikes= SpikeMonitor(pops[layer][2],record=rec) #create the spike detector for group sst
-    vip_spikes= SpikeMonitor(pops[layer][3],record=rec) #create the spike detector for group vip
-
-    return e_spikes,pv_spikes,sst_spikes,vip_spikes
-
-# Subgroup where from each group I record only a number n_activity of neurons
-def spike_det_n(pops,layer,n_activity):
-    e_spikes = SpikeMonitor(pops[layer][0][:n_activity])  #create the spike detector for e
-    pv_spikes= SpikeMonitor(pops[layer][1][:n_activity])  #create the spike detector for subgroup pv
-    sst_spikes= SpikeMonitor(pops[layer][2][:n_activity]) #create the spike detector for subgroup sst
-    vip_spikes= SpikeMonitor(pops[layer][3][:n_activity]) #create the spike detector for subgroup vip
-
-    return e_spikes,pv_spikes,sst_spikes,vip_spikes
-
-# Rate detectors
-def rate_det(pops,layer):
-    e_rate = PopulationRateMonitor(pops[layer][0]) #create the rate det for e
-    pv_rate= PopulationRateMonitor(pops[layer][1]) #create the rate detector for subgroup pv
-    sst_rate= PopulationRateMonitor(pops[layer][2]) #create the rate detector for subgroup sst
-    vip_rate= PopulationRateMonitor(pops[layer][3])#create the rate detector for subgroup vip
-
-    return e_rate,pv_rate,sst_rate,vip_rate
-
-##### -----------------------------------------------------------------------------------------#####
-##### Create the recording devices: Spike detectors and rate detectors (calling the functions) #####
-##### -----------------------------------------------------------------------------------------#####
-
-# To compute the time to create detectors 
-start_detectors=time.time()
-
-
-SM_ampa_ext = [StateMonitor(popl1, "s_AMPA_ext", record=True, dt=1*ms)] + [StateMonitor(pop, "s_AMPA_ext", record=True, dt=1*ms) for layer in pops for pop in layer]
-SM_v = [StateMonitor(popl1, "v", record=True, dt=1*ms)] + [StateMonitor(pop, "v", record=True, dt=1*ms) for layer in pops for pop in layer]
-
-spike_monitors = [SpikeMonitor(popl1[:],record=True)]
-for i in range(4):
-    spike_monitors.extend(spike_det(pops, i, True))
-
-rate_monitors = [PopulationRateMonitor(popl1)]
-for i in range(4):
-    rate_monitors.extend(rate_det(pops, i))
-
-
-# Other recorders devices (not used)
-# mE=StateMonitor(pops[0][0][10], 'v',record=True) #check membrane potential of one neuron
-
 defaultclock.dt = dt_sim*ms #time step of simulations
 
 # Construct network
@@ -746,48 +628,30 @@ net = Network(pops[:],
               connections[:],
               extinputs,
               spike_monitors,
-              rate_monitors,
-#               SM_ampa_ext,
-#               SM_v,
+#               rate_monitors,
               )
 
-net.store("initialized")
-population_rates = []
-# s_AMPA_exts = []
-# vms = []
-for i in range(5):
-    net.restore("initialized")
-    np.random.seed(i+1)
-    net.run(runtime)
-    population_rates.append([rm.smooth_rate(window="flat", width=1*ms).mean() for rm in rate_monitors])
-#     s_AMPA_exts.append(SM_ampa_ext[1].s_AMPA_ext)
-#     vms.append(SM_v[1].v)
-population_rates = np.array(population_rates)
-# s_AMPA_exts = np.array(s_AMPA_exts)
-# vms = np.array(vms)
+t2 = time.time()
+print(f"Done in {t2 - t1:.1f} seconds", flush=True)
+print("Running simulation", flush=True)
 
-## 
+net.run(runtime)
 
-# def plot_network(variables):
-#     gs = GridSpec(ncols=4, nrows=5)
-#     index = 0
-#     fig = plt.figure()
-#     for var in variables:
-#         i1, i2 = index // 4, index % 4
-#         ax = fig.add_subplot(gs[i1, i2])
-#         ax.plot(var, color="black")
-#         if index == 0:
-#             index += 4
-#         else:
-#             index += 1
-# 
-# plot_network(population_rates)
-# plt.show()
+t3 = time.time()
+print(f"Done in {t3 - t2:.1f} seconds", flush=True)
+print("Saving files", flush=True)
 
+lines = ["create,connect,simulate,total\n",
+        f"{t1-t0},{t2-t1},{t3-t2},{t3-t0}\n"]
 
-# a = np.array([0.97916667, 0.87363931, 3.81538462, 3.65957447, 7.83177570, 1.76363636, 5.51020408, 2.52830189, 0.37037037, 8.36240952, 4.34920635, 4.14285714, 5.63636364, 1.67408047, 2.93761141, 6.60784314, 3.68421053])
-# 
-# b = np.array([0.70833333, 0.68887908, 2.67692308, 3.40425532, 5.90654206, 1.38811881, 3.30241187, 1.54716981, 0.37037037, 2.57931542, 3.71428571, 3.71428571, 5.45454545, 0.97315195, 2.09803922, 6.03921569, 3.15789474])
-# 
-# c = np.array([650, 930., 1460., 870., 1405., 890., 1980., 2105., 240., 4740., 930., 530., 870., 1770., 1170., 885., 1620.])
+with open(os.path.join(savedir, "time.csv"), "w") as f:
+    f.writelines(lines)
+
+names = ["L1VIP", "L23E", "L23PV", "L23SST", "L23VIP", "L4E", "L4PV", "L4SST", "L4VIP", "L5E", "L5PV", "L5SST", "L5VIP", "L6E", "L6PV", "L6SST", "L6VIP"]
+for i, sm in enumerate(spike_monitors):
+    with open(os.path.join(savedir, names[i] + "_spikes.csv"), "w") as f:
+        lines = ["sender,time_ms\n"]
+        for sender, time in zip(sm.i, sm.t / ms):
+            lines.append(f"{sender},{time:.1f}\n")
+        f.writelines(lines)            
 

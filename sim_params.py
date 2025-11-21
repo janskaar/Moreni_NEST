@@ -34,14 +34,14 @@ sim_dict = {
     # presimulation time (in ms)
     "t_presim": 0.0,
     # simulation time (in ms)
-    "t_sim": 500.0,
+    "t_sim": 10000.0,
     # resolution of the simulation (in ms)
     "sim_resolution": 0.1,
     # list of recording devices, default is 'spike_recorder'. A 'voltmeter' can
     # be added to record membrane voltages of the neurons. Nothing will be
     # recorded if an empty list is given.
-    "rec_dev": ["spike_recorder", "multimeter"],
-    "rec_from_mm": ["V_m", "s_AMPA"],
+    "rec_dev": ["spike_recorder"],
+    "rec_from_mm": [],
     # path to save the output data
     "data_path": os.path.join(os.getcwd(), "data/"),
     # Seed for NEST
